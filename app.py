@@ -175,7 +175,7 @@ elif st.session_state.page == "Humanizer":
         if 'GEMINI_API_KEY' in st.secrets:
             import google.generativeai as genai
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-1.5-pro')
             
             text = st.text_area("Enter text to humanize:", height=150,
                                placeholder="Paste text here...")
