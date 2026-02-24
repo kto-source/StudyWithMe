@@ -42,13 +42,11 @@ if 'history' not in st.session_state:
 if 'page' not in st.session_state:
     st.session_state.page = "Home"
 
-# Simple AI Detection (without heavy models)
+# Simple AI Detection 
 def simple_ai_detection(text):
-    """Simple detection based on text patterns"""
     words = text.lower().split()
     word_count = len(words)
     
-    # Simple heuristics
     ai_indicators = [
         'furthermore', 'moreover', 'additionally', 'consequently',
         'in conclusion', 'firstly', 'secondly', 'lastly',
@@ -60,7 +58,6 @@ def simple_ai_detection(text):
         if word in ai_indicators:
             formal_score += 1
     
-    # Calculate probability
     if word_count > 0:
         ai_prob = min((formal_score / word_count) * 100 + random.randint(-10, 10), 100)
         ai_prob = max(ai_prob, 0)
@@ -88,7 +85,6 @@ with st.sidebar:
     st.title("StudyWithMe")
     st.markdown("---")
     
-    # Navigation buttons
     if st.button("🏠 Home"):
         st.session_state.page = "Home"
     if st.button("🤖 AI Detector"):
@@ -103,10 +99,10 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Made for students 📱")
 
-# Main content based on page
+# Main content
 if st.session_state.page == "Home":
     st.markdown("<h1 class='main-title'>Welcome to StudyWithMe! 📚</h1>", unsafe_allow_html=True)
-    st.write("### Your AI Study Assistant on Mobile")
+    st.write("### Your AI Study Assistant")
     
     col1, col2 = st.columns(2)
     
@@ -124,12 +120,11 @@ if st.session_state.page == "Home":
             st.session_state.page = "Humanizer"
             st.rerun()
     
-    st.markdown("---")
     col3, col4 = st.columns(2)
     
     with col3:
         st.info("📚 **Study Tools**")
-        st.caption("Notes, quizzes & more")
+        st.caption("Notes & quizzes")
         if st.button("Try Now", key="home_study"):
             st.session_state.page = "Study Tools"
             st.rerun()
@@ -145,17 +140,15 @@ elif st.session_state.page == "AI Detector":
     st.header("🤖 AI Detector")
     st.caption("Check if text was written by AI")
     
-    # Text input
     text = st.text_area("Paste your text:", height=150, 
                        placeholder="Type or paste text here...")
     
     if st.button("🔍 Analyze", use_container_width=True):
         if text and len(text) > 20:
             with st.spinner("Analyzing..."):
-                time.sleep(1)  # Simulate processing
+                time.sleep(1)
                 result = simple_ai_detection(text)
                 
-                # Show results
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("AI %", f"{result['ai_prob']}%")
@@ -164,10 +157,8 @@ elif st.session_state.page == "AI Detector":
                 with col3:
                     st.info(result['verdict'])
                 
-                # Progress bar
                 st.progress(result['ai_prob'] / 100)
                 
-                # Save to history
                 st.session_state.history.append({
                     "tool": "AI Detector",
                     "result": result['verdict'],
@@ -180,69 +171,70 @@ elif st.session_state.page == "Humanizer":
     st.header("✍️ Text Humanizer")
     st.caption("Make AI text sound more natural")
     
-    text = st.text_area("Enter AI text:", height=150,
-                       placeholder="Paste AI-generated text...")
-    
-    if st.button("✨ Humanize", use_container_width=True):
-        if text:
-            with st.spinner("Humanizing..."):
-                time.sleep(2)  # Simulate processing
-                
-                # Simple humanization demo
-                humanized = text.replace("furthermore", "also")
-                humanized = humanized.replace("moreover", "plus")
-                humanized = humanized.replace("consequently", "so")
-                humanized = humanized.replace("nevertheless", "but")
-                humanized = humanized.replace("thus", "so")
-                
-                st.markdown("<div class='success-box'>", unsafe_allow_html=True)
-                st.write("### Humanized Text:")
-                st.write(humanized)
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Compare
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.caption(f"Original: {len(text.split())} words")
-                with col2:
-                    st.caption(f"Humanized: {len(humanized.split())} words")
-                
-                # Save to history
-                st.session_state.history.append({
-                    "tool": "Humanizer",
-                    "result": "Completed",
-                    "time": datetime.now().strftime("%H:%M %d/%m")
-                })
+    try:
+        if 'GEMINI_API_KEY' in st.secrets:
+            import google.generativeai as genai
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            model = genai.GenerativeModel('gemini-pro')
+            
+            text = st.text_area("Enter text to humanize:", height=150,
+                               placeholder="Paste text here...")
+            
+            if st.button("✨ Humanize", use_container_width=True):
+                if text:
+                    with st.spinner("Making it sound more human..."):
+                        prompt = f"Rewrite this to sound natural and human-like: {text}"
+                        response = model.generate_content(prompt)
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.subheader("Original")
+                            st.info(f"Words: {len(text.split())}")
+                            st.write(text)
+                        with col2:
+                            st.subheader("Humanized")
+                            st.success(f"Words: {len(response.text.split())}")
+                            st.write(response.text)
+                        
+                        st.session_state.history.append({
+                            "tool": "Humanizer",
+                            "result": "Completed",
+                            "time": datetime.now().strftime("%H:%M %d/%m")
+                        })
+                else:
+                    st.warning("Please enter text")
         else:
-            st.warning("Please enter some text")
+            st.warning("⚠️ Add your Gemini API key in Settings → Secrets")
+            st.info("Get a free key at: https://makersuite.google.com/app/apikey")
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
 
 elif st.session_state.page == "Study Tools":
     st.header("📚 Study Tools")
     
-    tool = st.selectbox("Choose tool:", ["Generate Notes", "Create Quiz", "Summarize Text"])
+    tool = st.selectbox("Choose tool:", ["Generate Notes", "Create Quiz", "Summarize"])
     
     text = st.text_area("Paste your content:", height=150,
                        placeholder="Paste your study material...")
     
     if st.button("Generate", use_container_width=True):
         if text:
-            with st.spinner(f"Creating {tool}..."):
-                time.sleep(2)  # Simulate processing
+            with st.spinner(f"Creating..."):
+                time.sleep(1)
                 
                 if tool == "Generate Notes":
                     st.markdown("<div class='success-box'>", unsafe_allow_html=True)
-                    st.write("### 📝 Study Notes")
-                    words = text.split()
-                    st.write("**Key Points:**")
-                    for i, word in enumerate(words[:5]):
-                        st.write(f"• {word} - important concept")
+                    st.write("### 📝 Notes")
+                    words = text.split()[:5]
+                    for i, word in enumerate(words):
+                        st.write(f"• {word} - key concept")
                     st.write("**Summary:**")
                     st.write(text[:200] + "...")
                     st.markdown("</div>", unsafe_allow_html=True)
                 
                 elif tool == "Create Quiz":
                     st.markdown("<div class='success-box'>", unsafe_allow_html=True)
-                    st.write("### 📋 Quiz Questions")
+                    st.write("### 📋 Quiz")
                     st.write("1. What is the main topic?")
                     st.write("   A) Topic 1   B) Topic 2   C) Topic 3   D) Topic 4")
                     st.write("2. What is the key idea?")
@@ -250,28 +242,26 @@ elif st.session_state.page == "Study Tools":
                     st.write("**Answers:** 1-A, 2-B")
                     st.markdown("</div>", unsafe_allow_html=True)
                 
-                else:  # Summarize
+                else:
                     st.markdown("<div class='success-box'>", unsafe_allow_html=True)
                     st.write("### 📊 Summary")
                     st.write(text[:300] + "...")
-                    st.caption(f"Original: {len(text.split())} words")
-                    st.caption(f"Summary: {len(text[:300].split())} words")
+                    st.caption(f"Words: {len(text.split())}")
                     st.markdown("</div>", unsafe_allow_html=True)
                 
-                # Save to history
                 st.session_state.history.append({
                     "tool": tool,
                     "result": "Generated",
                     "time": datetime.now().strftime("%H:%M %d/%m")
                 })
         else:
-            st.warning("Please paste some content first")
+            st.warning("Please paste content first")
 
 elif st.session_state.page == "History":
     st.header("📊 Your History")
     
     if st.session_state.history:
-        for item in reversed(st.session_state.history[-10:]):  # Show last 10
+        for item in reversed(st.session_state.history[-10:]):
             with st.container():
                 st.markdown(f"**{item['tool']}** - {item['result']}")
                 st.caption(f"🕐 {item['time']}")
@@ -285,4 +275,4 @@ elif st.session_state.page == "History":
 
 # Footer
 st.markdown("---")
-st.caption("StudyWithMe v1.0 - Made for mobile 📱")
+st.caption("StudyWithMe v2.0 - Made for mobile 📱")
